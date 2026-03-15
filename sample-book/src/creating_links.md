@@ -1,9 +1,11 @@
-# Creating links
+# The `mdbook-crossref` preprocessor
 
-This preprocessor allow you to create cross-referenceable links by creating new link items
+This preprocessor allow you to create cross-referenceable labels by creating new link items
 that use the `label` protocol. Additionally, it lets you set the supplement (the text substituted
 at the place of reference) for these links, which is used unless the referenced text is specified
 explicitly.
+
+These labels can then be referred to using links with the `ref` protocol.
 
 ## Creating cross-referenceable labels
 
@@ -47,7 +49,8 @@ It is rendered like this (note that the labelled data is not explicitly visible)
 ## Referring to cross-referefences { #creating }
 [](label:creating "the section on creating references")
 
-A cross reference can be referred to by any links prefixed with the `ref` protocol:
+A cross reference can be referred to by any links with the `ref` protocol followed by a
+label defined in some `ref` link:
 
 ```
 # Autolinks will only work if the reference specified a supplement.
@@ -66,3 +69,18 @@ These references are rendered as follows:
 We can also refer to the table created earlier:
 
 <ref:non-text>
+
+
+Reference links are also supported:
+
+```
+[A reference to the text][1]
+
+[1]: ref:a_piece_of_text
+```
+
+Rendered:
+
+[A reference to the text][1]
+
+[1]: ref:a_piece_of_text
