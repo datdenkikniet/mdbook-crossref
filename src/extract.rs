@@ -31,14 +31,26 @@ pub struct CodeBlock<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Autolink<'a> {
+pub struct Link<'a> {
     pub url: Url<'a>,
     pub full_range: Range<usize>,
+    pub title: CowStr<'a>,
+    pub text: Vec<Event<'a>>,
 }
 
-impl<'a> Autolink<'a> {
-    pub fn new(url: Url<'a>, full_range: Range<usize>) -> Self {
-        Self { url, full_range }
+impl<'a> Link<'a> {
+    pub fn new(
+        url: Url<'a>,
+        full_range: Range<usize>,
+        title: CowStr<'a>,
+        text: Vec<Event<'a>>,
+    ) -> Self {
+        Self {
+            url,
+            full_range,
+            title,
+            text,
+        }
     }
 }
 
@@ -47,12 +59,6 @@ pub struct Heading<'a> {
     pub level: usize,
     pub source: Option<(HeadingLevel, Range<usize>)>,
     pub text: &'a str,
-}
-
-impl Heading<'_> {
-    pub fn level(&self) -> usize {
-        self.level
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -64,7 +70,7 @@ pub enum Element<'a> {
         link_url: Url<'a>,
     },
     Heading(Heading<'a>),
-    Link(Autolink<'a>),
+    Link(Link<'a>),
 }
 
 /// Extract elements recursively.
@@ -191,7 +197,7 @@ fn extract_elements<'a>(chapter: &'a Chapter, elements: &mut Vec<Element<'a>>) {
                 }
             }
             Event::Start(Tag::Link {
-                link_type: LinkType::Autolink,
+                link_type,
                 dest_url,
                 title,
                 ..
@@ -200,8 +206,20 @@ fn extract_elements<'a>(chapter: &'a Chapter, elements: &mut Vec<Element<'a>>) {
                     continue;
                 };
 
-                elements.push(Element::Link(Autolink::new(dest_url, range)))
-                // Could handle `Event::End(TagEnd::Link)`, but not necessary
+                let mut text = Vec::new();
+                if link_type != LinkType::Autolink {
+                    loop {
+                        let (next, _) = parser.next().unwrap();
+
+                        if next == Event::End(TagEnd::Link) {
+                            break;
+                        } else {
+                            text.push(next);
+                        }
+                    }
+                }
+
+                elements.push(Element::Link(Link::new(dest_url, range, title, text)))
             }
             _ => {}
         }

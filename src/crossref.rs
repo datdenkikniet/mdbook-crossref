@@ -7,7 +7,8 @@ use std::{
 use indexmap::IndexMap;
 use mdbook_preprocessor::book::SectionNumber;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use pulldown_cmark::{CowStr, Event, Tag, TagEnd};
 
 use crate::{
     Element, Rewriter,
@@ -48,7 +49,7 @@ impl std::fmt::Display for Supplement {
 struct Crossref<'a> {
     path: &'a Path,
     anchor: &'a str,
-    supplement: Supplement,
+    supplement: Option<Supplement>,
 }
 
 impl Crossref<'_> {
@@ -115,7 +116,7 @@ impl Rewriter {
                             Crossref {
                                 path: md_path.as_ref(),
                                 anchor: label_name,
-                                supplement: supplement.clone(),
+                                supplement: Some(supplement),
                             },
                         );
 
@@ -169,24 +170,45 @@ impl Rewriter {
             let rewrites = rewrites.at(md_path.clone());
             for element in elements {
                 let rewrite = match element {
-                    Element::Link(autolink) => {
-                        if autolink.url.protocol() != "ref" {
+                    Element::Link(link) => {
+                        if link.url.protocol() != "ref" {
                             continue;
                         }
 
-                        let Some(link) = known_links.get(autolink.url.value()) else {
-                            eprintln!("Unknown reference `{}`", autolink.url.value());
+                        let Some(crossref) = known_links.get(link.url.value()) else {
+                            eprintln!("Unknown reference `{}`", link.url.value());
                             continue;
                         };
 
-                        let link_resolved = format!(
-                            "[{supp}]({link})",
-                            supp = link.supplement,
-                            link = link.url(),
-                        );
+                        let text = if !link.text.is_empty() {
+                            link.text.clone()
+                        } else if let Some(supp) = &crossref.supplement {
+                            vec![Event::Text(CowStr::Boxed(
+                                supp.to_string().into_boxed_str(),
+                            ))]
+                        } else {
+                            eprintln!("Link had neither supplement nor text");
+                            continue;
+                        };
+
+                        let link_start = Event::Start(Tag::Link {
+                            link_type: pulldown_cmark::LinkType::Inline,
+                            dest_url: CowStr::Boxed(crossref.url().into_boxed_str()),
+                            title: link.title.clone(),
+                            id: CowStr::Borrowed(""),
+                        });
+
+                        let events = Some(link_start)
+                            .into_iter()
+                            .chain(text)
+                            .chain(Some(Event::End(TagEnd::Link)));
+
+                        let mut link_resolved = String::new();
+                        pulldown_cmark_to_cmark::cmark(events, &mut link_resolved)
+                            .context("failed to format cross-reference")?;
 
                         Rewrite {
-                            range: autolink.full_range.clone(),
+                            range: link.full_range.clone(),
                             replacement: link_resolved,
                         }
                     }

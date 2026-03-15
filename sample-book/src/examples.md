@@ -10,3 +10,9 @@ As mentioned in <ref:buh>
 
 My link [a link](ref:buh)
 
+
+[`a link with text` wow wow wah wah][its-name]
+
+Wah wah weeh weeh
+
+[its-name]: ref:buh "title"
