@@ -16,3 +16,7 @@ My link [a link](ref:buh)
 Wah wah weeh weeh
 
 [its-name]: ref:buh "title"
+
+We also have [cross-referenceable markdown, rendered `in-place`](label:text) that we can [refer back to](ref:text)
+
+<ref:text>

@@ -6,3 +6,6 @@ extra-watch-dirs = ["../src/"]
 
 [preprocessor.preprocessor]
 command = "cargo run"
+
+[output.html]
+additional-css = ["style.css"]

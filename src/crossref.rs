@@ -52,7 +52,7 @@ struct Crossref<'a> {
     supplement: Option<Supplement>,
 }
 
-impl Crossref<'_> {
+impl<'a> Crossref<'a> {
     pub fn url(&self) -> String {
         format!(
             "/{path}#{anchor}",
@@ -156,6 +156,42 @@ impl Rewriter {
                         } else {
                             new_numbering = Some(numbering);
                         }
+                    }
+                    Element::Link(link) => {
+                        if link.url.protocol() != "label" || link.text.is_empty() {
+                            continue;
+                        }
+
+                        let id = link.url.value();
+
+                        known_links.insert(
+                            id,
+                            Crossref {
+                                path: md_path.as_ref(),
+                                anchor: id,
+                                supplement: None,
+                            },
+                        );
+
+                        let title = if !link.title.is_empty() {
+                            format!(r#"title="{title}""#, title = link.title)
+                        } else {
+                            "".to_string()
+                        };
+
+                        // Render in-place
+                        let mut replacement = format!(r#"<span id="{id}" {title}>"#);
+                        pulldown_cmark::html::write_html_fmt(
+                            &mut replacement,
+                            link.text.iter().cloned(),
+                        )
+                        .context("failed to render labelled text")?;
+                        replacement.push_str("</span>");
+
+                        rewrites_path.push(Rewrite {
+                            range: link.full_range.clone(),
+                            replacement,
+                        });
                     }
                     _ => continue,
                 };
