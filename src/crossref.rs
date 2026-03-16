@@ -1,46 +1,22 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
-
-use indexmap::IndexMap;
+use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use pulldown_cmark::{CowStr, Event, Tag, TagEnd};
 
-use crate::{
-    Rewriter,
-    extract::Link,
-    rewrite::{Rewrite, Rewrites},
-};
+use crate::{CrossrefPreprocessor, rewrite::Rewrite};
 
 #[derive(Debug, Clone)]
-struct Crossref<'a> {
-    path: &'a Path,
-    anchor: &'a str,
+struct Crossref {
+    url: String,
     supplement: Option<String>,
 }
 
-impl<'a> Crossref<'a> {
-    pub fn url(&self) -> String {
-        format!(
-            "/{path}#{anchor}",
-            path = self.path.display(),
-            anchor = self.anchor
-        )
-    }
-}
-
-impl Rewriter {
-    fn scan_crossrefs<'a>(
-        &self,
-        map: &'a IndexMap<PathBuf, Vec<Link<'a>>>,
-        rewrites: &mut Rewrites,
-    ) -> Result<HashMap<&'a str, Crossref<'a>>> {
+impl CrossrefPreprocessor<'_> {
+    fn rewrite_and_scan_labels(&mut self) -> Result<HashMap<String, Crossref>> {
         let mut known_crossrefs = HashMap::new();
 
-        for (md_path, links) in map {
-            let rewrites_path = rewrites.at(md_path.clone());
+        for (md_path, links) in &self.map {
+            let rewrites_path = self.rewrites.at(md_path.clone());
             for link in links {
                 if link.url.protocol() != "label" {
                     continue;
@@ -55,10 +31,9 @@ impl Rewriter {
                 };
 
                 known_crossrefs.insert(
-                    id,
+                    id.to_string(),
                     Crossref {
-                        path: md_path.as_ref(),
-                        anchor: id,
+                        url: format!("/{path}#{anchor}", path = md_path.display(), anchor = id),
                         supplement,
                     },
                 );
@@ -87,22 +62,21 @@ impl Rewriter {
         Ok(known_crossrefs)
     }
 
-    pub fn create_crossref_rewrites(
-        &self,
-        map: &IndexMap<PathBuf, Vec<Link<'_>>>,
-        rewrites: &mut Rewrites,
-    ) -> Result<()> {
-        let known_crossrefs = self.scan_crossrefs(map, rewrites)?;
+    pub fn create_crossref_rewrites(&mut self) -> Result<()> {
+        let known_crossrefs = self.rewrite_and_scan_labels()?;
+        self.rewrite_refs(&known_crossrefs)
+    }
 
+    fn rewrite_refs(&mut self, crossrefs: &HashMap<String, Crossref>) -> Result<()> {
         // Rewrite all links
-        for (md_path, links) in map {
-            let rewrites = rewrites.at(md_path.clone());
+        for (md_path, links) in &self.map {
+            let rewrites = self.rewrites.at(md_path.clone());
             for link in links {
                 if link.url.protocol() != "ref" {
                     continue;
                 }
 
-                let Some(crossref) = known_crossrefs.get(link.url.value()) else {
+                let Some(crossref) = crossrefs.get(link.url.value()) else {
                     eprintln!("Unknown reference `{}`", link.url.value());
                     continue;
                 };
@@ -120,7 +94,7 @@ impl Rewriter {
 
                 let link_start = Event::Start(Tag::Link {
                     link_type: pulldown_cmark::LinkType::Inline,
-                    dest_url: CowStr::Boxed(crossref.url().into_boxed_str()),
+                    dest_url: crossref.url.clone().into(),
                     title: link.title.clone(),
                     id: CowStr::Borrowed(""),
                 });

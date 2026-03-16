@@ -2,7 +2,7 @@ use std::{ops::Range, path::PathBuf};
 
 use indexmap::IndexMap;
 use mdbook_preprocessor::book::{BookItem, Chapter};
-use pulldown_cmark::{CowStr, Event, LinkType, Parser, Tag, TagEnd, TextMergeWithOffset};
+use pulldown_cmark::{CowStr, Event, LinkType, Parser, Tag, TagEnd};
 
 #[derive(Debug, Clone)]
 pub struct Url<'a>(CowStr<'a>);
@@ -73,8 +73,7 @@ pub fn extract_elements_recursively<'a>(
 fn extract_elements(chapter: &Chapter) -> Vec<Link<'_>> {
     let mut elements = Vec::new();
     let content = &chapter.content;
-    let parser = Parser::new(&content).into_offset_iter();
-    let mut parser = TextMergeWithOffset::new(parser);
+    let mut parser = Parser::new(&content).into_offset_iter();
 
     while let Some((event, range)) = parser.next() {
         match event {

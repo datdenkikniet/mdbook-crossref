@@ -2,11 +2,16 @@ mod crossref;
 mod extract;
 mod rewrite;
 
-use std::io::{Read, Write};
+use std::{
+    io::{Read, Write},
+    path::PathBuf,
+};
 
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use mdbook_preprocessor::book::{Book, BookItem, Chapter};
+
+use crate::{extract::Link, rewrite::Rewrites};
 
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
@@ -53,9 +58,7 @@ fn single_chapter() -> Result<String> {
 
     let mut book = Book { items };
 
-    let rewriter = Rewriter;
-
-    rewriter.rewrite_book(&mut book)?;
+    CrossrefPreprocessor::rewrite_book(&mut book)?;
 
     let BookItem::Chapter(output) = book.items.remove(0) else {
         panic!("Time to remove single-chapter");
@@ -66,21 +69,29 @@ fn single_chapter() -> Result<String> {
 
 fn book() -> Result<String> {
     let (_ctx, mut book) = mdbook_preprocessor::parse_input(std::io::stdin())?;
-    let rewriter = Rewriter;
-    rewriter.rewrite_book(&mut book)?;
+    CrossrefPreprocessor::rewrite_book(&mut book)?;
     Ok(serde_json::to_string(&book)?)
 }
 
-struct Rewriter;
+struct CrossrefPreprocessor<'a> {
+    rewrites: Rewrites,
+    map: IndexMap<PathBuf, Vec<Link<'a>>>,
+}
 
-impl Rewriter {
-    fn rewrite_book(&self, book: &mut Book) -> Result<()> {
+impl CrossrefPreprocessor<'_> {
+    fn rewrite_book(book: &mut Book) -> Result<()> {
         let mut map = IndexMap::new();
-        let mut rewrites = Default::default();
-
         extract::extract_elements_recursively(&book.items, &mut map);
 
-        self.create_crossref_rewrites(&map, &mut rewrites)?;
+        let mut me = CrossrefPreprocessor {
+            rewrites: Default::default(),
+            map,
+        };
+
+        me.create_crossref_rewrites()?;
+
+        let CrossrefPreprocessor { rewrites, map } = me;
+        drop(map);
 
         rewrites.apply(&mut book.items);
 
