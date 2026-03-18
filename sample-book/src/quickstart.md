@@ -20,8 +20,24 @@ and start creating `label`s and `ref`erences.
 That's all there is to it! To find out how to actually use the preprocessor in more
 detail, see <ref:creating_links>.
 
-```figure text-figure Table
-bah bah
+```figure text-figure
+Description
+|  A table  |
+| :-------: |
+| Waah waah |
 ```
 
+```figure text-figure
+Description
+|  A table  |
+| :-------: |
+| Waah waah |
+```
+
+```figure text-figure
+Description
+|  A table  |
+| :-------: |
+| Waah waah |
+```
 <ref:text-figure>

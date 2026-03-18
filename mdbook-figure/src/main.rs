@@ -4,7 +4,7 @@ use std::{collections::HashMap, fmt::Write as _};
 
 use anyhow::{Context, Result};
 use mdbook_preprocessor::book::BookItem;
-use pulldown_cmark::{CodeBlockKind, Event, Parser, Tag, TagEnd};
+use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
 
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
@@ -34,6 +34,7 @@ fn main() -> Result<()> {
 
 struct Figure<'a> {
     input_range: Range<usize>,
+    description: Option<&'a str>,
     replacement_text: &'a str,
     label: String,
     ty: String,
@@ -82,7 +83,7 @@ fn number_figures(items: &mut [BookItem], counters: &mut HashMap<String, usize>)
                 );
             };
 
-            let ty = data.get(0).unwrap_or(&"Figure");
+            let ty = data.get(0);
 
             let (mut current, mut current_range) = parser.next().unwrap();
             let start = current_range.start;
@@ -99,11 +100,40 @@ fn number_figures(items: &mut [BookItem], counters: &mut HashMap<String, usize>)
                 current_range = range;
             }
 
+            let inner_text = if (start..end) != current_range {
+                &content[start..end]
+            } else {
+                ""
+            };
+            let description = inner_text.lines().next();
+            let skip = description.map(|v| v.len() + 1).unwrap_or(0);
+
+            let replacement_text = &inner_text[skip..];
+
+            let ty = if let Some(ty) = ty {
+                ty.to_string()
+            } else {
+                let mut parser = Parser::new_ext(replacement_text, Options::ENABLE_TABLES);
+                let first = parser.next();
+
+                if let Some(Event::Start(Tag::Table(_))) = first {
+                    "Table".to_string()
+                } else {
+                    eprintln!(
+                        "Found figure without explicit or auto-detectable type in chapter {name}. Don't know type for event {first:?}",
+                        name = chapter.name
+                    );
+
+                    "Figure".to_string()
+                }
+            };
+
             let counter = counters.entry(ty.to_string()).or_default();
 
             let figure = Figure {
                 input_range: range,
-                replacement_text: &content[start..end],
+                description,
+                replacement_text,
                 label: label.to_string(),
                 ty: ty.to_string(),
                 counter: *counter,
@@ -121,6 +151,12 @@ fn number_figures(items: &mut [BookItem], counters: &mut HashMap<String, usize>)
                 output.push_str(&content[last_copied..figure.input_range.start]);
             }
 
+            let description = if let Some(description) = figure.description {
+                format!(": {description}")
+            } else {
+                "".to_string()
+            };
+
             #[rustfmt::skip]
             writeln!(
                 output,
@@ -128,7 +164,7 @@ r#"<div class="figure" id="{label}">
 
 {replacement_text}
 
-<p class="figure-footer">{ty} {counter}</p>
+<p class="figure-footer">{ty} {counter} {description}</p>
 </div>
 
 [](label:{label} "{ty} {counter}")
