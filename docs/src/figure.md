@@ -1,4 +1,4 @@
-# The `mdbook-figures` preprocessor
+# The `mdbook-figure` preprocessor
 
 This preprocessor allows you to define figures with a label, an optional type, a description, and contents.
 
