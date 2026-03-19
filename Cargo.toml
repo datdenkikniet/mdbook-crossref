@@ -4,6 +4,7 @@ members = [ "mdbook-crossref" , "mdbook-figure"]
 default-members = [ "mdbook-crossref", "mdbook-figure" ]
 
 [workspace.dependencies]
+annotate-snippets = "0.12.13"
 anyhow = { version = "1.0.102", features = ["std"] }
 mdbook-preprocessor = { version = "0.5.2", default-features = false }
 pulldown-cmark = { version = "0.13.1", default-features = false, features = ["html"] }
