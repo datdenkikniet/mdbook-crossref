@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+annotate-snippets.workspace = true
+anstream = "1.0.0"
 anyhow.workspace = true
 mdbook-preprocessor.workspace = true
 pulldown-cmark.workspace = true

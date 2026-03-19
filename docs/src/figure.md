@@ -76,3 +76,7 @@ a very fancy table
 ```
 
 and is referred to as <ref:a-table>
+
+```figure a-table
+A duplicated table figure
+```

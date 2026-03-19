@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::{Link, Url, rewrite_and_scan_labels};
 
@@ -9,15 +9,19 @@ pub fn duplicate_label_produces_error() {
         vec![
             Link {
                 url: Url::new("label:duplicate".into()).unwrap(),
-                full_range: 0..0,
+                element_range: 0..0,
                 title: "title".into(),
                 text: None,
+                full_source: "",
+                source_path: Path::new(""),
             },
             Link {
                 url: Url::new("label:duplicate".into()).unwrap(),
-                full_range: 0..0,
+                element_range: 0..0,
                 title: "title".into(),
                 text: None,
+                full_source: "",
+                source_path: Path::new(""),
             },
         ],
     )]

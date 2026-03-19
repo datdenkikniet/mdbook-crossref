@@ -1,7 +1,12 @@
+use annotate_snippets::{AnnotationKind, Level, Renderer, Snippet, renderer::DecorStyle};
 use anyhow::{Context, Result};
-use mdbook_preprocessor::book::{Book, BookItem, Chapter};
+use mdbook_preprocessor::book::{Book, BookItem};
 use pulldown_cmark::{CowStr, Event, LinkType, Parser, Tag, TagEnd};
-use std::{collections::HashMap, ops::Range, path::PathBuf};
+use std::{
+    collections::HashMap,
+    ops::Range,
+    path::{Path, PathBuf},
+};
 
 mod rewrite;
 
@@ -57,23 +62,29 @@ impl<'a> Url<'a> {
 #[derive(Debug, Clone)]
 pub struct Link<'a> {
     pub url: Url<'a>,
-    pub full_range: Range<usize>,
+    pub element_range: Range<usize>,
     pub title: CowStr<'a>,
     pub text: Option<&'a str>,
+    pub full_source: &'a str,
+    pub source_path: &'a Path,
 }
 
 impl<'a> Link<'a> {
     pub fn new(
         url: Url<'a>,
-        full_range: Range<usize>,
+        element_range: Range<usize>,
         title: CowStr<'a>,
         text: Option<&'a str>,
+        full_source: &'a str,
+        source_path: &'a Path,
     ) -> Self {
         Self {
             url,
-            full_range,
+            element_range,
             title,
             text,
+            full_source,
+            source_path,
         }
     }
 }
@@ -89,20 +100,19 @@ fn extract_links<'a>(items: &'a Vec<BookItem>, map: &mut LinkMap<'a>) {
     });
 
     for chapter in chapters {
-        let Some(path) = chapter.path.clone() else {
+        let Some(path) = chapter.path.as_ref() else {
             continue;
         };
 
-        let items = extract_links_chapter(&chapter);
-        map.insert(path, items);
+        let items = extract_links_chapter(&chapter.content, path);
+        map.insert(path.to_path_buf(), items);
 
         extract_links(&chapter.sub_items, map);
     }
 }
 
-fn extract_links_chapter(chapter: &Chapter) -> Vec<Link<'_>> {
+fn extract_links_chapter<'a>(content: &'a str, path: &'a Path) -> Vec<Link<'a>> {
     let mut elements = Vec::new();
-    let content = &chapter.content;
     let mut parser = Parser::new(&content).into_offset_iter();
 
     while let Some((event, range)) = parser.next() {
@@ -138,7 +148,7 @@ fn extract_links_chapter(chapter: &Chapter) -> Vec<Link<'_>> {
                     None
                 };
 
-                elements.push(Link::new(dest_url, range, title, text));
+                elements.push(Link::new(dest_url, range, title, text, content, path));
             }
             _ => {}
         }
@@ -151,7 +161,8 @@ fn rewrite_and_scan_labels(
     rewrites: &mut Rewrites,
     map: &LinkMap,
 ) -> Result<HashMap<String, Crossref>> {
-    let mut known_crossrefs = HashMap::new();
+    let mut known_crossrefs: HashMap<String, (Crossref, &Link<'_>)> = HashMap::new();
+    let mut report = Vec::new();
 
     for (md_path, links) in map {
         let rewrites_path = rewrites.at(md_path.clone());
@@ -168,17 +179,43 @@ fn rewrite_and_scan_labels(
                 None
             };
 
-            let existing = known_crossrefs.insert(
-                id.to_string(),
-                Crossref {
-                    url: format!("/{path}#{anchor}", path = md_path.display(), anchor = id),
-                    supplement,
-                },
-            );
+            if let Some((_, original_link)) = known_crossrefs.get(id) {
+                report.push(
+                    Level::ERROR
+                        .primary_title(format!("Duplicate label '{id}'"))
+                        .element(
+                            Snippet::source(original_link.full_source)
+                                .path(original_link.source_path.display().to_string())
+                                .annotation(
+                                    AnnotationKind::Context
+                                        .span(original_link.element_range.clone())
+                                        .label("Originally defined here"),
+                                ),
+                        )
+                        .element(
+                            Snippet::source(link.full_source)
+                                .path(md_path.display().to_string())
+                                .annotation(
+                                    AnnotationKind::Primary
+                                        .span(link.element_range.clone())
+                                        .label("Error occurred here"),
+                                ),
+                        ),
+                );
 
-            if existing.is_some() {
-                anyhow::bail!("Duplicate label '{id}'");
-            }
+                continue;
+            } else {
+                known_crossrefs.insert(
+                    id.to_string(),
+                    (
+                        Crossref {
+                            url: format!("/{path}#{anchor}", path = md_path.display(), anchor = id),
+                            supplement,
+                        },
+                        link,
+                    ),
+                );
+            };
 
             // Render in-place
             let replacement = if let Some(text) = link.text {
@@ -193,13 +230,24 @@ fn rewrite_and_scan_labels(
             };
 
             rewrites_path.push(Rewrite {
-                range: link.full_range.clone(),
+                range: link.element_range.clone(),
                 replacement,
             });
         }
     }
 
-    Ok(known_crossrefs)
+    if !report.is_empty() {
+        let renderer = Renderer::styled().decor_style(DecorStyle::Unicode);
+        anstream::eprintln!("{}", renderer.render(&report));
+        anyhow::bail!("Encountered errors");
+    }
+
+    let mapped = known_crossrefs
+        .into_iter()
+        .map(|(k, (v, _))| (k, v))
+        .collect();
+
+    Ok(mapped)
 }
 
 fn rewrite_refs(
@@ -231,7 +279,7 @@ fn rewrite_refs(
             let replacement = format!("[{supplement}]({url})", url = crossref.url);
 
             let rewrite = Rewrite {
-                range: link.full_range.clone(),
+                range: link.element_range.clone(),
                 replacement,
             };
 
