@@ -105,7 +105,11 @@ fn number_figures(items: &mut [BookItem], counters: &mut HashMap<String, usize>)
             } else {
                 ""
             };
-            let description = inner_text.lines().next();
+            let description = inner_text
+                .lines()
+                .next()
+                .map(|v| v.trim())
+                .and_then(|v| (!v.is_empty()).then_some(v));
             let skip = description.map(|v| v.len() + 1).unwrap_or(0);
 
             let replacement_text = &inner_text[skip..];
@@ -151,10 +155,11 @@ fn number_figures(items: &mut [BookItem], counters: &mut HashMap<String, usize>)
                 output.push_str(&content[last_copied..figure.input_range.start]);
             }
 
+            let name = format!("{ty} {counter}", ty = figure.ty);
             let description = if let Some(description) = figure.description {
-                format!(": {description}")
+                format!("{name}: {description}")
             } else {
-                "".to_string()
+                name.clone()
             };
 
             #[rustfmt::skip]
@@ -164,14 +169,13 @@ r#"<div class="figure" id="{label}">
 
 {replacement_text}
 
-<p class="figure-footer">{ty} {counter} {description}</p>
+<p class="figure-footer">{description}</p>
 </div>
 
-[](label:{label} "{ty} {counter}")
+[](label:{label} "{name}")
 "#,
                 label = figure.label,
                 replacement_text = figure.replacement_text,
-                ty = figure.ty,
             )
             .context("writing output")?;
 
