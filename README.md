@@ -6,7 +6,7 @@ One important goal with them is that we re-use existing markdown syntax in an ef
 results we already want. That way, the the result of rendering pages a standard markdown renderer or
 previewer should still, at the very least, be legible.
 
-## `mdbook-crossref`
+## `mdbook-xref`
 
 Use cross-references with definition-site defined supplements and automatic linking.
 
@@ -16,7 +16,7 @@ Define automatically numbered figures of arbitrary types that can be linked to w
 
 # Documentation
 
-For full documentation, browse the book `docs` over on [github pages](https://datdenkikniet.github.io/mdbook-crossref/), or by cloning the repo and serving it locally: `mdbook serve docs`.
+For full documentation, browse the book `docs` over on [github pages](https://datdenkikniet.github.io/mdbook-xref/), or by cloning the repo and serving it locally: `mdbook serve docs`.
 
 # License
 

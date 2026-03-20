@@ -16,8 +16,8 @@ and add it to your `book.toml`:
 [book]
 
 [preprocessor.figure]
-# If you're also using `mdbook-crossref`, you must use the correct ordering:
-before = [ "crossref" ]
+# If you're also using `mdbook-xref`, you must use the correct ordering:
+before = [ "xref" ]
 ```
 
 ## Defining figures
@@ -48,7 +48,7 @@ The rest describes its contents, which are rendered as
 
 The figures are numbered by type and order in the book.
 
-These figures can be referred to by their label using the `mdbook-crossref` preprocessor. In this case, we can refer to [`ref:a-label`](ref:a-label), or <ref:a-table>.
+These figures can be referred to by their label using the `mdbook-xref` preprocessor. In this case, we can refer to [`ref:a-label`](ref:a-label), or <ref:a-table>.
 
 ## Autodetection
 

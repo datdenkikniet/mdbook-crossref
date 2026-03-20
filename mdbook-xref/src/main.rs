@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 use anyhow::{Context, Result};
 use mdbook_preprocessor::book::{Book, BookItem, Chapter};
 
-use mdbook_crossref::CrossrefPreprocessor;
+use mdbook_xref::CrossrefPreprocessor;
 
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();

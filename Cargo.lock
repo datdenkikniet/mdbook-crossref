@@ -66,16 +66,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mdbook-crossref"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "mdbook-preprocessor",
- "pulldown-cmark",
- "serde_json",
-]
-
-[[package]]
 name = "mdbook-figure"
 version = "0.1.0"
 dependencies = [
@@ -95,6 +85,16 @@ dependencies = [
  "anyhow",
  "mdbook-core",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "mdbook-xref"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "mdbook-preprocessor",
+ "pulldown-cmark",
  "serde_json",
 ]
 

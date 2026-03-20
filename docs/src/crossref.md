@@ -1,4 +1,4 @@
-# The `mdbook-crossref` preprocessor { #creating_links }
+# The `mdbook-xref` preprocessor { #creating_links }
 [](label:creating_links "creating links")
 
 This preprocessor allow you to create cross-referenceable labels by creating new link items
@@ -13,7 +13,7 @@ The created labels can then be referred to using links with the `ref` protocol.
 To get started, install the preprocessor:
 
 ```sh
-cargo install mdbook-crossref
+cargo install mdbook-xref
 ```
 
 and add it to your `book.toml`:
@@ -21,7 +21,7 @@ and add it to your `book.toml`:
 ```toml
 [book]
 
-[preprocessor.crossref] # This is all you need to do
+[preprocessor.xref] # This is all you need to do
 ```
 
 and start creating `label`s and `ref`erences.
