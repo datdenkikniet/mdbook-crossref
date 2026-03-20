@@ -1,7 +1,11 @@
 use anyhow::{Context, Result};
 use mdbook_preprocessor::book::{Book, BookItem, Chapter};
 use pulldown_cmark::{CowStr, Event, LinkType, Parser, Tag, TagEnd};
-use std::{collections::HashMap, ops::Range, path::PathBuf};
+use std::{
+    collections::HashMap,
+    ops::Range,
+    path::{Path, PathBuf},
+};
 
 mod rewrite;
 
@@ -12,8 +16,28 @@ mod test;
 
 #[derive(Debug, Clone)]
 struct Crossref {
-    url: String,
+    path: PathBuf,
+    anchor: String,
     supplement: Option<String>,
+}
+
+impl Crossref {
+    pub fn rel_link_from(&self, from: &Path) -> String {
+        let mut result = PathBuf::new();
+        let parent_components = from.parent().unwrap().components();
+
+        for _ in parent_components {
+            result.push("..");
+        }
+
+        result.push(&self.path);
+
+        format!(
+            "{path}#{anchor}",
+            path = result.display(),
+            anchor = self.anchor
+        )
+    }
 }
 
 type LinkMap<'a> = HashMap<PathBuf, Vec<Link<'a>>>;
@@ -171,7 +195,8 @@ fn rewrite_and_scan_labels(
             let existing = known_crossrefs.insert(
                 id.to_string(),
                 Crossref {
-                    url: format!("/{path}#{anchor}", path = md_path.display(), anchor = id),
+                    path: md_path.clone(),
+                    anchor: id.to_string(),
                     supplement,
                 },
             );
@@ -228,7 +253,10 @@ fn rewrite_refs(
                 continue;
             };
 
-            let replacement = format!("[{supplement}]({url})", url = crossref.url);
+            let replacement = format!(
+                "[{supplement}]({url})",
+                url = crossref.rel_link_from(md_path)
+            );
 
             let rewrite = Rewrite {
                 range: link.full_range.clone(),
